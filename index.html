@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>小小冒險家｜Pixel Quest</title>
+<style>
+:root{--bg:#10162b;--panel:#1a2442;--line:#3d4d78;--cream:#fff3d0;--muted:#b6c3e8;--gold:#ffd166;--green:#8cff98;--pink:#ff8bb5}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at top,#26345d 0,#10162b 60%);color:var(--cream);font-family:Consolas,"Courier New",monospace;min-height:100vh;padding:20px}
+.wrap{max-width:1050px;margin:auto}.top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+h1{font-size:clamp(24px,4vw,38px);margin:0;letter-spacing:1px;text-shadow:3px 3px #633f88}.subtitle{color:var(--muted);font-size:13px;margin-top:7px}
+.pixel{border:3px solid var(--line);box-shadow:5px 5px 0 #080d1d;background:var(--panel);border-radius:4px}
+button{font:inherit;color:var(--cream);background:#29375f;border:2px solid #7184ba;padding:9px 12px;border-radius:3px;cursor:pointer;box-shadow:3px 3px 0 #0a1022}
+button:hover{filter:brightness(1.2)}button:active{transform:translate(2px,2px);box-shadow:1px 1px 0 #0a1022}
+button:focus-visible{outline:3px solid var(--gold);outline-offset:2px}.primary{background:#6548a8;border-color:#b6a0ff}.danger{background:#743b4d;border-color:#ff9aa8}
+.layout{display:grid;grid-template-columns:minmax(0,1fr) 250px;gap:16px;align-items:start}
+.gamebox{padding:12px;min-width:0}.canvas-wrap{position:relative;width:100%;overflow:hidden;background:#11182c;border:3px solid #080d1d}
+canvas{display:block;width:100%;height:auto;aspect-ratio:5/3;image-rendering:pixelated;image-rendering:crisp-edges}
+.hud{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 0}.chip{border:2px solid var(--line);padding:7px 9px;background:#111a33;font-size:13px}.chip b{color:var(--gold)}
+.side{padding:15px}.side h2{font-size:17px;margin:0 0 10px;color:var(--gold)}.side p,.side li{font-size:13px;line-height:1.65;color:var(--muted)}.side ul{padding-left:18px;margin:7px 0 16px}
+.controls{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}.controls button{padding:12px 6px;touch-action:none;user-select:none}
+.mode-row{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}.mode-row button.selected{outline:3px solid var(--gold);background:#584c82}
+.status{min-height:43px;padding:10px 12px;margin-top:10px;border:2px dashed #596b9b;color:#dce6ff;font-size:13px;line-height:1.5}
+.overlay{position:absolute;inset:0;background:#0a1022df;display:flex;align-items:center;justify-content:center;text-align:center;padding:20px;z-index:2}
+.overlay-card{max-width:430px}.overlay h2{color:var(--gold);font-size:clamp(22px,4vw,32px);margin:0 0 12px}.overlay p{line-height:1.7;color:#dce6ff;font-size:14px}.hidden{display:none!important}
+.footer{color:#8395c7;font-size:12px;margin-top:16px;text-align:center}
+@media(max-width:800px){body{padding:12px}.layout{grid-template-columns:1fr}.side{order:2}.controls{grid-template-columns:repeat(4,1fr)}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="top"><div><h1>⭐ 小小冒險家</h1><div class="subtitle">PIXEL QUEST · 收集星星，躲開陷阱，抵達終點！</div></div><button id="restartTop" class="primary">↻ 重新開始</button></header>
+<div class="mode-row" aria-label="遊戲模式"><button id="singleBtn" class="selected">👤 單人模式</button><button id="twoBtn">👥 雙人模式</button><button id="startBtn" class="primary">▶ 開始遊戲</button></div>
+<main class="layout">
+<section class="gamebox pixel">
+<div class="canvas-wrap">
+<canvas id="game" width="800" height="480" aria-label="小小冒險家遊戲畫面"></canvas>
+<div class="overlay" id="overlay"><div class="overlay-card"><h2 id="overlayTitle">準備好冒險了嗎？</h2><p id="overlayText">控制小人跳過陷阱、收集星星，找到出口！<br>每一關都會生成新的隨機地圖。</p><button class="primary" id="overlayStart">開始冒險 ▶</button></div></div>
+</div>
+<div class="hud">
+<div class="chip">關卡：<b id="levelText">第 1 關</b></div><div class="chip">星星：<b id="starsText">0</b></div><div class="chip">連續無死亡：<b id="streakText">0</b></div><div class="chip">最佳紀錄：<b id="bestText">0</b></div><div class="chip">模式：<b id="modeText">單人</b></div><div class="chip">狀態：<b id="stateText">準備中</b></div>
+</div>
+<div class="status" id="status">提示：按「開始遊戲」開始冒險。</div>
+<div class="controls"><button id="leftBtn">◀ 左移</button><button id="jumpBtn">⬆ 跳躍</button><button id="rightBtn">右移 ▶</button><button id="pauseBtn">Ⅱ 暫停</button></div>
+</section>
+<aside class="side pixel">
+<h2>🕹️ 操作說明</h2><p><b>單人模式</b></p><ul><li>移動：A / D 或 ← / →</li><li>跳躍：W / ↑ / 空白鍵</li><li>暫停：Esc</li></ul>
+<p><b>雙人模式</b></p><ul><li>玩家 1：A / D 移動，W 跳躍</li><li>玩家 2：← / → 移動，↑ 跳躍</li><li>兩位玩家都要抵達出口才能過關。</li></ul>
+<p><b>闖關目標</b></p><ul><li>⭐ 收集星星，累積總數。</li><li>▲ 避開尖刺，掉出地圖也會死亡。</li><li>🟨 踩下開關打開障礙門。</li><li>🚪 抵達出口，選擇是否挑戰下一關。</li><li>🏅 死亡會讓連續通關紀錄歸零。</li></ul>
+<button id="nextBtn" class="primary" style="width:100%">下一關 ➜</button><button id="resetBtn" class="danger" style="width:100%;margin-top:9px">重設全部進度</button>
+</aside></main><div class="footer">小小冒險家 · 單一 HTML 製作 · 可部署至 GitHub Pages</div>
+</div>
+<script>
+(() => {
+'use strict';
+const canvas=document.getElementById('game'),ctx=canvas.getContext('2d'),$=id=>document.getElementById(id);
+const W=canvas.width,H=canvas.height;
+const GRAVITY=.48, MOVE=3.15, JUMP=-10.6;
+let mode=1,levelIndex=0,totalStars=0,streak=0,bestStreak=0,running=false,paused=false,gameOver=false,awaitingNext=false;
+let keys=Object.create(null),players=[],level=null,message='準備開始！',cameraX=0,lastTime=0,raf=null;
+const names=['霓虹遺跡','星光洞窟','浮空花園','月光工廠','像素高塔','水晶峽谷','雲端走廊','機械迷宮'];
+const rand=(a,b)=>Math.random()*(b-a)+a;
+function generateLevel(index){
+  const difficulty=Math.min(1.5,Math.max(0,index)*.045);
+  const platforms=[[0,420,170,60]];
+  let x=170,y=420,guard=0;
+  // 生成一條可連續跳躍的主路徑，限制高度差及平台間距。
+  while(x<2200+index*90 && guard++<80){
+    const gap=34+Math.floor(rand(0,Math.min(22,16+difficulty*4)));
+    const width=Math.max(92,Math.floor(rand(112,158)-difficulty*8));
+    const nextY=Math.max(285,Math.min(410,y+Math.floor(rand(-38,39))));
+    x+=gap;
+    platforms.push([x,nextY,width,18]);
+    x+=width;y=nextY;
+  }
+  const last=platforms[platforms.length-1];
+  const endX=last[0]+last[2]+36;
+  platforms.push([endX,420,190,60]);
+  const worldWidth=endX+190;
+  const spikes=[],gems=[];
+  platforms.forEach((p,i)=>{
+    if(i>1&&i<platforms.length-2&&Math.random()<Math.min(.42,.20+difficulty*.10)){
+      const sw=24+Math.floor(rand(0,13));
+      const sx=p[0]+Math.floor(rand(12,Math.max(13,p[2]-sw-12)));
+      // 陷阱只佔平台局部，保留可落腳區域。
+      spikes.push([sx,p[1]-18,sw,18]);
+    }
+  });
+  // 機關和門固定在終點前的安全地面，避免隨機生成到無法抵達的位置。
+  const switchPlatform=platforms[platforms.length-2];
+  const swX=switchPlatform[0]+Math.min(25,switchPlatform[2]-26);
+  const switchBox=[swX,switchPlatform[1]-20,22,20];
+  const gateX=endX+70,gate=[gateX,340,18,80];
+  const exit=[endX+125,360,38,60];
+  // 清除機關周圍可能干擾操作的陷阱。
+  const safeX=switchBox[0]-70;
+  const safeEnd=exit[0]+exit[2]+20;
+  const safeSpikes=spikes.filter(s=>s[0]+s[2]<safeX||s[0]>safeEnd);
+  // 先確定陷阱位置，再放星星；星星周圍須有可安全站立的空間。
+  // 玩家寬 24px，額外保留 24px 緩衝，避免收集星星時擦到尖刺。
+  const margin=48;
+  platforms.forEach((p,i)=>{
+    if(i===0||i===platforms.length-1||Math.random()>=.76)return;
+    const minX=p[0]+margin,maxX=p[0]+p[2]-margin;
+    if(maxX<=minX)return;
+    const candidates=[];
+    for(let gx=minX;gx<=maxX;gx+=8){
+      const nearSpike=safeSpikes.some(s=>
+        gx>s[0]-margin && gx<s[0]+s[2]+margin &&
+        p[1]-48<s[1]+s[3] && p[1]+8>s[1]
+      );
+      if(!nearSpike)candidates.push(gx);
+    }
+    if(candidates.length){
+      const gx=candidates[Math.floor(rand(0,candidates.length))];
+      gems.push({x:gx,y:p[1]-42,taken:false});
+    }
+  });
+  return {name:names[index%names.length],start:[[28,365],[70,365]],platforms,spikes:safeSpikes,gems,switch:switchBox,gate,exit,worldWidth:Math.max(worldWidth,exit[0]+100)};
+}
+function newPlayer(x,y,id){return{x,y,w:24,h:32,vx:0,vy:0,onGround:false,id,color:id===0?'#ffd166':'#70e1ff',outline:id===0?'#9c5d32':'#2e6e9b',spawnX:x,spawnY:y,won:false,prevJump:false};}
+function setOverlay(title,text,button='開始冒險 ▶'){
+  $('overlayTitle').textContent=title;$('overlayText').innerHTML=text;$('overlayStart').textContent=button;$('overlay').classList.remove('hidden');
+}
+function loadLevel(i,showIntro=true){
+  levelIndex=Math.max(0,i);const d=generateLevel(levelIndex);
+  level={...d,switchOn:false,gateOpen:false};
+  players=[newPlayer(...d.start[0],0)];if(mode===2)players.push(newPlayer(...d.start[1],1));
+  keys=Object.create(null);cameraX=0;running=false;paused=false;gameOver=false;awaitingNext=false;
+  $('overlayStart').onclick=()=>startGame();
+  const endButton=$('endGameBtn');if(endButton)endButton.classList.add('hidden');
+  if(showIntro)setOverlay(`第 ${levelIndex+1} 關：${d.name}`,mode===1?'一個小小冒險家出發！<br>收集星星、躲開陷阱，找到出口。':'兩位冒險家一起出發！<br>兩位玩家都抵達出口才能過關。');
+  else $('overlay').classList.add('hidden');
+  message='按下開始，展開冒險！';updateHUD();draw();
+}
+function startGame(){if(awaitingNext)return;running=true;paused=false;gameOver=false;$('overlay').classList.add('hidden');message='出發！小心尖刺。';updateHUD();}
+function restart(){totalStars=0;streak=0;loadLevel(0);message='已重新開始，連續通關紀錄已重設。';updateHUD();}
+function updateHUD(){
+  $('levelText').textContent=`第 ${levelIndex+1} 關`;$('streakText').textContent=streak;$('bestText').textContent=bestStreak;$('starsText').textContent=totalStars;
+  $('modeText').textContent=mode===1?'單人':'雙人';$('stateText').textContent=gameOver?'關卡完成':paused?'已暫停':running?'冒險中':'準備中';$('status').textContent=message;
+  $('singleBtn').classList.toggle('selected',mode===1);$('twoBtn').classList.toggle('selected',mode===2);
+}
+function rectHit(a,b){return a.x<b[0]+b[2]&&a.x+a.w>b[0]&&a.y<b[1]+b[3]&&a.y+a.h>b[1];}
+function platformCollision(p,oldY){
+  p.onGround=false;
+  if(p.vy<0)return;
+  for(const pl of level.platforms){
+    const overlap=p.x+p.w>pl[0]&&p.x<pl[0]+pl[2];
+    if(overlap&&oldY+p.h<=pl[1]+3&&p.y+p.h>=pl[1]&&p.y+p.h<=pl[1]+pl[3]+Math.max(0,p.vy)+2){
+      p.y=pl[1]-p.h;p.vy=0;p.onGround=true;
+    }
+  }
+}
+function die(p,reason){
+  streak=0;
+  // 雙人模式以同一條命管理本關，避免另一名玩家保留舊的通關狀態。
+  players.forEach(q=>{q.x=q.spawnX;q.y=q.spawnY;q.vx=0;q.vy=0;q.onGround=false;q.won=false;q.prevJump=false;});
+  level.switchOn=false;level.gateOpen=false;keys=Object.create(null);cameraX=0;
+  message=`玩家 ${p.id+1}${reason}！已回到起點，連續無死亡通關紀錄歸零。`;updateHUD();
+}
+function finishLevel(){
+  running=false;paused=false;gameOver=true;awaitingNext=true;streak++;bestStreak=Math.max(bestStreak,streak);
+  message='過關成功！是否挑戰下一關？';updateHUD();
+  setOverlay('🎉 要挑戰下一關嗎？',`第 ${levelIndex+1} 關完成！<br>連續無死亡通關：<b>${streak}</b> 關<br>歷史最佳紀錄：<b>${bestStreak}</b> 關<br>目前收集 ${totalStars} 顆星星。<br><br>要繼續挑戰全新隨機關卡嗎？`,'下一關 ➜');
+  $('overlayStart').onclick=()=>{loadLevel(levelIndex+1,false);startGame();};
+  // 完成畫面提供明確的結束選項，不強制玩家繼續。
+  const card=$('overlay').querySelector('.overlay-card');
+  let end=$('endGameBtn');if(!end){end=document.createElement('button');end.id='endGameBtn';end.style.marginLeft='8px';end.textContent='結束遊玩';card.appendChild(end);}
+  end.onclick=()=>{awaitingNext=false;gameOver=true;setOverlay('冒險告一段落！',`目前連續通關：${streak} 關<br>最佳紀錄：${bestStreak} 關<br>累積星星：${totalStars} 顆。`,'再玩一次');$('overlayStart').onclick=restart;end.classList.add('hidden');};
+  end.classList.remove('hidden');
+}
+function updatePlayer(p){
+  if(p.won)return;
+  const left=mode===1?(keys.a||keys.ArrowLeft):(p.id===0?keys.a:keys.ArrowLeft);
+  const right=mode===1?(keys.d||keys.ArrowRight):(p.id===0?keys.d:keys.ArrowRight);
+  const jump=mode===1?(keys.w||keys.ArrowUp||keys[' ']):(p.id===0?(keys.w||keys[' ']):keys.ArrowUp);
+  p.vx=(right?MOVE:0)-(left?MOVE:0);
+  const oldX=p.x,oldY=p.y;
+  p.x=Math.max(0,Math.min(level.worldWidth-p.w,p.x+p.vx));
+  p.vy=Math.min(11,p.vy+GRAVITY);p.y+=p.vy;
+  platformCollision(p,oldY);
+  if(jump&&p.onGround){p.vy=JUMP;p.onGround=false;}
+  p.prevJump=jump;
+  for(const s of level.spikes){if(rectHit(p,[s[0]+2,s[1]+3,s[2]-4,s[3]-2])){die(p,'碰到尖刺');return;}}
+  if(p.y>H+45){die(p,'墜落');return;}
+  // 開關由任一玩家觸發，打開全隊共用的門。
+  if(rectHit(p,level.switch)&&!level.switchOn){level.switchOn=true;level.gateOpen=true;message='開關啟動！障礙門已打開。';}
+  if(!level.gateOpen&&rectHit(p,level.gate)){
+    if(oldX+p.w<=level.gate[0])p.x=level.gate[0]-p.w;
+    else if(oldX>=level.gate[0]+level.gate[2])p.x=level.gate[0]+level.gate[2];
+    p.vx=0;
+  }
+  for(const g of level.gems){
+    if(!g.taken&&p.x<g.x+12&&p.x+p.w>g.x-12&&p.y<g.y+12&&p.y+p.h>g.y-12){g.taken=true;totalStars++;message=`玩家 ${p.id+1} 收集到一顆星星！`; }
+  }
+  if(rectHit(p,level.exit)){
+    p.won=true;p.vx=0;p.vy=0;message=mode===2?`玩家 ${p.id+1} 已抵達出口，等待隊友！`:'抵達出口！';
+    if(players.every(q=>q.won))finishLevel();
+  }
+}
+function drawPerson(p){
+  const x=Math.round(p.x),y=Math.round(p.y);
+  ctx.fillStyle='rgba(0,0,0,.25)';ctx.fillRect(x+2,y+p.h-1,22,4);
+  ctx.fillStyle='#35264d';ctx.fillRect(x+4,y,16,11);ctx.fillStyle=p.color;ctx.fillRect(x+3,y+5,18,12);
+  ctx.fillStyle='#fff2d5';ctx.fillRect(x+6,y+8,4,4);ctx.fillRect(x+14,y+8,4,4);
+  ctx.fillStyle='#24213d';ctx.fillRect(x+7,y+9,2,3);ctx.fillRect(x+15,y+9,2,3);
+  ctx.fillStyle=p.outline;ctx.fillRect(x+2,y+17,20,10);ctx.fillStyle=p.color;ctx.fillRect(x+4,y+18,16,7);
+  ctx.fillStyle='#e9e6ff';ctx.fillRect(x+1,y+19,4,7);ctx.fillRect(x+19,y+19,4,7);
+  ctx.fillStyle='#32284b';ctx.fillRect(x+4,y+27,6,5);ctx.fillRect(x+14,y+27,6,5);
+  ctx.fillStyle='#fff';ctx.font='10px monospace';ctx.fillText('P'+(p.id+1),x+5,y-5);
+  if(p.won){ctx.fillStyle='#8cff98';ctx.fillRect(x-3,y-9,30,2);}
+}
+function draw(){
+  ctx.clearRect(0,0,W,H);ctx.fillStyle='#121a32';ctx.fillRect(0,0,W,H);
+  // 背景裝飾固定於視窗，營造景深。
+  for(let i=0;i<75;i++){const x=(i*97+17-cameraX*.18)%W,y=(i*53+23)%350;ctx.fillStyle=i%3===0?'#596a9d':'#2b3b66';ctx.fillRect((x+W)%W,y,3,3);}
+  const focus=players.length?players.reduce((sum,p)=>sum+p.x,0)/players.length:0;
+  const maxCamera=Math.max(0,level.worldWidth-W);
+  cameraX=Math.max(0,Math.min(maxCamera,focus-W*.38));
+  ctx.save();ctx.translate(-Math.round(cameraX),0);
+  ctx.fillStyle='#1c2a4b';for(let x=Math.floor(cameraX/80)*80;x<cameraX+W+80;x+=80){ctx.fillRect(x,365,55,55);ctx.fillRect(x+15,345,30,20);}
+  for(const p of level.platforms){ctx.fillStyle='#536a87';ctx.fillRect(...p);ctx.fillStyle='#8db6a3';ctx.fillRect(p[0],p[1],p[2],5);ctx.fillStyle='#334762';for(let x=p[0]+8;x<p[0]+p[2];x+=24)ctx.fillRect(x,p[1]+9,8,5);}
+  for(const s of level.spikes){ctx.fillStyle='#b45a84';ctx.fillRect(s[0],s[1]+s[3]-4,s[2],4);ctx.fillStyle='#ff8bb5';for(let x=s[0];x<s[0]+s[2];x+=15){ctx.beginPath();ctx.moveTo(x,s[1]+s[3]-3);ctx.lineTo(x+7,s[1]);ctx.lineTo(x+14,s[1]+s[3]-3);ctx.fill();}}
+  for(const g of level.gems){if(g.taken)continue;ctx.fillStyle='#ffd166';ctx.fillRect(g.x-7,g.y-7,14,14);ctx.fillStyle='#fff4bc';ctx.fillRect(g.x-3,g.y-5,5,5);ctx.fillStyle='#d88a42';ctx.fillRect(g.x+3,g.y+2,4,4);}
+  ctx.fillStyle=level.switchOn?'#8cff98':'#ffcf70';ctx.fillRect(...level.switch);ctx.fillStyle='#4c4164';ctx.fillRect(level.switch[0]+4,level.switch[1]+5,14,10);
+  if(!level.gateOpen){ctx.fillStyle='#a6a9d6';ctx.fillRect(...level.gate);ctx.fillStyle='#626b9e';for(let y=level.gate[1]+6;y<level.gate[1]+level.gate[3];y+=15)ctx.fillRect(level.gate[0]+4,y,10,5);}
+  else{ctx.fillStyle='#8cff98';ctx.fillRect(level.gate[0],level.gate[1]+level.gate[3]-5,level.gate[2],5);}
+  const e=level.exit;ctx.fillStyle='#7553a6';ctx.fillRect(...e);ctx.fillStyle='#b7a1ff';ctx.fillRect(e[0]+6,e[1]+7,e[2]-12,e[3]-7);ctx.fillStyle='#2c2449';ctx.fillRect(e[0]+12,e[1]+14,e[2]-24,e[3]-14);ctx.fillStyle='#ffd166';ctx.fillRect(e[0]+e[2]-15,e[1]+32,4,4);
+  players.forEach(drawPerson);
+  ctx.restore();
+  ctx.fillStyle='#fff3d0';ctx.font='bold 14px monospace';ctx.fillText(level.name,14,24);
+  ctx.fillStyle='#9eafd9';ctx.font='11px monospace';ctx.fillText(level.gateOpen?'門已開啟':'找到黃色開關開門',14,42);
+}
+function loop(time){
+  const dt=lastTime?Math.min(2,(time-lastTime)/16.67):1;lastTime=time;
+  if(running&&!paused&&!gameOver){for(let n=0;n<dt;n++){players.forEach(updatePlayer);if(!running||gameOver)break;}updateHUD();}
+  draw();raf=requestAnimationFrame(loop);
+}
+function switchMode(next){mode=next;loadLevel(levelIndex);message=mode===1?'已切換單人模式。':'已切換雙人模式。兩位玩家都要抵達出口。';updateHUD();}
+$('singleBtn').onclick=()=>switchMode(1);$('twoBtn').onclick=()=>switchMode(2);$('startBtn').onclick=startGame;
+$('restartTop').onclick=restart;$('resetBtn').onclick=()=>{bestStreak=0;restart();message='所有進度已重設，回到第一關。';updateHUD();};
+$('nextBtn').onclick=()=>{loadLevel(levelIndex+1);};
+$('pauseBtn').onclick=()=>{if(!running)return;paused=!paused;keys=Object.create(null);message=paused?'遊戲已暫停。':'繼續冒險！';updateHUD();};
+window.addEventListener('keydown',e=>{
+  const k=e.key===' '?' ':e.key.length===1?e.key.toLowerCase():e.key;
+  if(['ArrowLeft','ArrowRight','ArrowUp',' '].includes(k))e.preventDefault();
+  keys[k]=true;
+  if(k==='Escape'&&running){paused=!paused;keys=Object.create(null);message=paused?'遊戲已暫停。':'繼續冒險！';updateHUD();}
+});
+window.addEventListener('keyup',e=>{const k=e.key===' '?' ':e.key.length===1?e.key.toLowerCase():e.key;keys[k]=false;});
+window.addEventListener('blur',()=>{keys=Object.create(null);});
+function bindHold(id,key){const b=$(id);const down=e=>{e.preventDefault();keys[key]=true;};const up=e=>{e.preventDefault();keys[key]=false;};b.addEventListener('pointerdown',down);['pointerup','pointerleave','pointercancel'].forEach(ev=>b.addEventListener(ev,up));}
+bindHold('leftBtn','a');bindHold('rightBtn','d');
+$('jumpBtn').addEventListener('pointerdown',e=>{e.preventDefault();keys.w=true;});
+['pointerup','pointerleave','pointercancel'].forEach(ev=>$('jumpBtn').addEventListener(ev,()=>{keys.w=false;}));
+loadLevel(0);raf=requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
